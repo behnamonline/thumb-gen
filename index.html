@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ساخت کاور یوتیوب با Konva.js</title>
+    <!-- Konva.js CDN -->
+    <script src="konva.min.js"></script>
+
+    <script>
+        const initialFonts = [
+            'Vazir-Medium.ttf',
+        ];
+    </script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Tahoma, Segoe UI, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            background-color: #121212;
+            color: #fff;
+            overflow: hidden;
+            direction: rtl;
+        }
+
+        #sidebar {
+            width: 360px;
+            /* افزایش پهنا برای نمایش بهتر عناصر */
+            min-width: 360px;
+            /* جلوگیری از جمع شدن و فشردگی sidebar */
+            background: #1e1e1e;
+            border-left: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            gap: 15px;
+            z-index: 10;
+            overflow-y: auto;
+            flex-shrink: 0;
+            /* مانع از فشرده شدن منو توسط بخش اصلی می‌شود */
+        }
+
+        #sidebar h2 {
+            font-size: 15px;
+            margin-bottom: 5px;
+            color: #e0e0e0;
+        }
+
+        /* بخش یادداشت‌ها */
+        .note-section {
+            background: #2a2a2a;
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .note-section textarea {
+            width: 100%;
+            height: 90px;
+            background: #1e1e1e;
+            color: #00ffcc;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 8px;
+            font-size: 13px;
+            resize: vertical;
+            outline: none;
+            direction: rtl;
+            text-align: right;
+        }
+
+        .note-section textarea:focus {
+            border-color: #3b82f6;
+        }
+
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: #2563eb;
+        }
+
+        .btn-text {
+            background: #8b5cf6;
+        }
+
+        .btn-text:hover {
+            background: #7c3aed;
+        }
+
+        .btn-export {
+            background: #10b981;
+        }
+
+        .btn-export:hover {
+            background: #059669;
+        }
+
+        .btn-font {
+            background: #f59e0b;
+            color: #000;
+        }
+
+        .btn-font:hover {
+            background: #d97706;
+        }
+
+        .text-tools,
+        .filter-tools {
+            background: #2a2a2a;
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .control-group select,
+        .control-group input[type="color"],
+        .control-group input[type="range"] {
+            background: #1e1e1e;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 6px;
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .control-group select {
+            flex: 1;
+            max-width: 180px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .control-group input[type="color"] {
+            width: 45px;
+            height: 32px;
+            padding: 2px;
+        }
+
+        .control-group input[type="range"] {
+            flex: 1;
+            padding: 0;
+            accent-color: #3b82f6;
+        }
+
+        .gradient-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            min-height: 150px;
+            padding-left: 5px;
+        }
+
+        .gradient-card {
+            height: 60px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.1s, border-color 0.2s;
+        }
+
+        .gradient-card:hover {
+            transform: scale(1.03);
+            border-color: #3b82f6;
+        }
+
+        #main-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            background: #0a0a0a;
+            overflow: hidden;
+            /* جلوگیری از اسکرول غیرضروری */
+        }
+
+        #canvas-container {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="sidebar">
+        <!-- بخش یادداشت -->
+        <div class="note-section">
+            <h2>📝 یادداشت سریع</h2>
+            <textarea id="notes-textarea"
+                placeholder="یادداشت‌های خود را اینجا بنویسید (خودکار ذخیره می‌شود)..."></textarea>
+        </div>
+
+        <h2>ابزارها</h2>
+        <button class="btn btn-text" id="add-text-btn">✍️ افزودن متن</button>
+        <button class="btn btn-font" id="add-font-btn">➕ افزودن فونت دلخواه</button>
+        <input type="file" id="font-file-input" accept=".ttf,.otf,.woff,.woff2" style="display: none;">
+
+        <button class="btn" id="paste-btn">📋 پیست عکس از کلپ‌بورد</button>
+        <button class="btn btn-export" id="export-btn">📥 دانلود کاور (2560x1440)</button>
+
+        <div class="text-tools">
+            <h2>تنظیمات متن انتخاب‌شده</h2>
+            <div class="control-group">
+                <label>فونت:</label>
+                <select id="font-family-select"></select>
+            </div>
+            <div class="control-group">
+                <label>رنگ متن:</label>
+                <input type="color" id="text-color-picker" value="#ffffff">
+            </div>
+        </div>
+
+        <!-- تنظیمات فیلتر رنگی -->
+        <div class="filter-tools">
+            <h2>فیلتر رنگی المنت (Cold / Warm)</h2>
+            <div class="control-group">
+                <label>نوع فیلتر:</label>
+                <select id="filter-type-select">
+                    <option value="none" selected>بدون فیلتر</option>
+                    <option value="warm">گرم (Warm)</option>
+                    <option value="cold">سرد (Cold)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>شدت فیلتر:</label>
+                <input type="range" id="filter-intensity" min="0" max="100" value="50">
+                <span id="intensity-value" style="font-size: 11px; width: 25px;">50%</span>
+            </div>
+        </div>
+
+        <h2>گرادینت‌های تیره و مدرن</h2>
+        <div class="gradient-grid" id="gradient-grid"></div>
+    </div>
+
+    <div id="main-content">
+        <div id="canvas-container"></div>
+    </div>
+
+    <script>
+        // =============================================================
+        // ۱. مدیریت پویای فونت‌ها از طریق آرایه (بدون نیاز به @font-face در CSS)
+        // =============================================================
+
+        // آرایه فایل‌های فونت اولیه
+
+
+        // فونت‌های پیش‌فرض سیستم
+        const systemFonts = ['Tahoma', 'Arial', 'Impact', 'Courier New'];
+
+        const loadedFonts = []; // لیست فونت‌های ثبت شده
+        const fontSelect = document.getElementById('font-family-select');
+
+        // تابع برای استخراج نام فونت از روی نام فایل
+        function getFontNameFromFilename(filename) {
+            return filename.substring(0, filename.lastIndexOf('.')) || filename;
+        }
+
+        // تزریق استایل @font-face به به صورت پویا به DOM
+        function injectFontFaceRule(fontName, fontUrl) {
+            const style = document.createElement('style');
+            style.textContent = `
+        @font-face {
+          font-family: '${fontName}';
+          src: url('${fontUrl}');
+        }
+      `;
+            document.head.appendChild(style);
+        }
+
+        // افزودن فونت به لیست و UI
+        function registerFont(fontName, fontUrl, isCustom = false) {
+            if (loadedFonts.includes(fontName)) return;
+
+            if (!systemFonts.includes(fontName)) {
+                injectFontFaceRule(fontName, fontUrl);
+            }
+
+            loadedFonts.push(fontName);
+
+            const option = document.createElement('option');
+            option.value = fontName;
+            option.textContent = fontName + (isCustom ? ' (سفارشی)' : '');
+            fontSelect.appendChild(option);
+        }
+
+        // بارگذاری اولیه فونت‌ها
+        function initFonts() {
+            // ۱. ثبت فونت‌های آرایه اولیه
+            initialFonts.forEach(file => {
+                const fontName = getFontNameFromFilename(file);
+                registerFont(fontName, file);
+            });
+
+            // ۲. ثبت فونت‌های پیش‌فرض سیستم
+            systemFonts.forEach(fontName => {
+                registerFont(fontName, fontName);
+            });
+
+            // ۳. بارگذاری فونت‌های ذخیره شده در LocalStorage
+            const savedFonts = JSON.parse(localStorage.getItem('user_saved_fonts') || '[]');
+            savedFonts.forEach(fontData => {
+                registerFont(fontData.name, fontData.url, true);
+            });
+        }
+
+        // مدیریت آپلود فونت جدید توسط کاربر
+        const fontFileInput = document.getElementById('font-file-input');
+        document.getElementById('add-font-btn').addEventListener('click', () => {
+            fontFileInput.click();
+        });
+
+        fontFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const fontName = getFontNameFromFilename(file.name);
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                const fontUrl = event.target.result; // داده Base64
+
+                // ثبت فونت در مرورگر
+                registerFont(fontName, fontUrl, true);
+                fontSelect.value = fontName;
+
+                // ذخیره در LocalStorage
+                const savedFonts = JSON.parse(localStorage.getItem('user_saved_fonts') || '[]');
+                savedFonts.push({name: fontName, url: fontUrl});
+                localStorage.setItem('user_saved_fonts', JSON.stringify(savedFonts));
+
+                alert(`فونت "${fontName}" با موفقیت اضافه شد!`);
+            };
+
+            reader.readAsDataURL(file);
+        });
+
+        initFonts();
+
+        // =============================================================
+        // ۲. مدیریت بخش یادداشت (Note) با ذخیره‌سازی خودکار
+        // =============================================================
+        const notesTextarea = document.getElementById('notes-textarea');
+
+        // بازگردانی یادداشت از LocalStorage
+        notesTextarea.value = localStorage.getItem('user_cover_notes') || '';
+
+        // ذخیره اتوماتیک با هر تغییر
+        notesTextarea.addEventListener('input', () => {
+            localStorage.setItem('user_cover_notes', notesTextarea.value);
+        });
+
+        // =============================================================
+        // ۳. کانوای Konva و بقیه ابزارها
+        // =============================================================
+        Konva.Filters.Temperature = function (imageData) {
+            const data = imageData.data;
+            const type = this.getAttr('tempType') || 'none';
+            const intensity = (this.getAttr('tempIntensity') !== undefined ? this.getAttr('tempIntensity') : 50) / 100;
+
+            if (type === 'none') return;
+
+            for (let i = 0; i < data.length; i += 4) {
+                let r = data[i];
+                let g = data[i + 1];
+                let b = data[i + 2];
+
+                if (type === 'warm') {
+                    r = r + (50 * intensity);
+                    g = g + (20 * intensity);
+                    b = b - (40 * intensity);
+                } else if (type === 'cold') {
+                    r = r - (40 * intensity);
+                    g = g + (10 * intensity);
+                    b = b + (50 * intensity);
+                }
+
+                data[i] = Math.min(255, Math.max(0, r));
+                data[i + 1] = Math.min(255, Math.max(0, g));
+                data[i + 2] = Math.min(255, Math.max(0, b));
+            }
+        };
+
+        const gradients = [
+            {name: 'Dark Knight', color1: '#0f2027', color2: '#203a43', stop: '#2c5364'},
+            {name: 'Midnight', color1: '#232526', color2: '#414345'},
+            {name: 'Deep Purple', color1: '#0d0d0d', color2: '#4a00e0'},
+            {name: 'Obsidian', color1: '#000000', color2: '#16222a', stop: '#3a6073'},
+            {name: 'Royal Blue', color1: '#000428', color2: '#004e92'},
+            {name: 'Neon Dark', color1: '#111111', color2: '#00f2fe'},
+            {name: 'Crimson Night', color1: '#140003', color2: '#670010'},
+            {name: 'Emerald Shadow', color1: '#02111b', color2: '#003934'},
+            {name: 'Sunset Dark', color1: '#0b0c10', color2: '#1f2833', stop: '#c5a059'},
+            {name: 'Cyberpunk', color1: '#12002b', color2: '#4f0059'},
+            {name: 'Vampire', color1: '#20002c', color2: '#cbb4d4'},
+            {name: 'Space', color1: '#000000', color2: '#0f9b0f'},
+            {name: 'Charcoal', color1: '#1f1c2c', color2: '#928dab'},
+            {name: 'Deep Sea', color1: '#0f2027', color2: '#203a43'},
+            {name: 'Plum Dark', color1: '#1e0c1b', color2: '#3d1635'},
+            {name: 'Gold Dark', color1: '#110e08', color2: '#382a13'},
+            {name: 'Oceanic', color1: '#051923', color2: '#006494'},
+            {name: 'Ashes', color1: '#0e1111', color2: '#232b2b'},
+            {name: 'Satanic Red', color1: '#1a0000', color2: '#4a0000'},
+            {name: 'Electric Violet', color1: '#0a0017', color2: '#2a004f'}
+        ];
+
+        const STAGE_WIDTH = 1280;
+        const STAGE_HEIGHT = 720;
+
+        const stage = new Konva.Stage({
+            container: 'canvas-container',
+            width: STAGE_WIDTH,
+            height: STAGE_HEIGHT
+        });
+
+        const layer = new Konva.Layer();
+        stage.add(layer);
+
+        const bgRect = new Konva.Rect({
+            x: 0,
+            y: 0,
+            width: STAGE_WIDTH,
+            height: STAGE_HEIGHT,
+            listening: false
+        });
+        layer.add(bgRect);
+
+        applyGradient(gradients[0]);
+
+        function applyGradient(g) {
+            bgRect.fillPriority('linear-gradient');
+            bgRect.fillLinearGradientStartPoint({x: 0, y: 0});
+            bgRect.fillLinearGradientEndPoint({x: STAGE_WIDTH, y: STAGE_HEIGHT});
+            if (g.stop) {
+                bgRect.fillLinearGradientColorStops([0, g.color1, 0.5, g.color2, 1, g.stop]);
+            } else {
+                bgRect.fillLinearGradientColorStops([0, g.color1, 1, g.color2]);
+            }
+            layer.draw();
+        }
+
+        function fitStageToContainer() {
+            const mainContent = document.getElementById('main-content');
+            const padding = 40;
+            const maxWidth = mainContent.clientWidth - padding;
+            const maxHeight = mainContent.clientHeight - padding;
+            const scale = Math.min(maxWidth / STAGE_WIDTH, maxHeight / STAGE_HEIGHT);
+
+            stage.width(STAGE_WIDTH * scale);
+            stage.height(STAGE_HEIGHT * scale);
+            stage.scale({x: scale, y: scale});
+            stage.draw();
+        }
+        window.addEventListener('resize', fitStageToContainer);
+
+        const grid = document.getElementById('gradient-grid');
+        gradients.forEach(g => {
+            const card = document.createElement('div');
+            card.className = 'gradient-card';
+            const stopStr = g.stop ? `, ${g.stop}` : '';
+            card.style.background = `linear-gradient(135deg, ${g.color1}, ${g.color2}${stopStr})`;
+            card.title = g.name;
+            card.onclick = () => applyGradient(g);
+            grid.appendChild(card);
+        });
+
+        const imgTransformer = new Konva.Transformer({
+            rotateEnabled: true,
+            borderStroke: '#3b82f6',
+            anchorFill: '#3b82f6',
+            anchorSize: 16
+        });
+
+        const maskTransformer = new Konva.Transformer({
+            rotateEnabled: false,
+            enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+            borderStroke: '#ef4444',
+            borderStrokeWidth: 2,
+            borderDash: [6, 6],
+            anchorFill: '#ef4444',
+            anchorSize: 16,
+            keepRatio: true
+        });
+
+        const mainTransformer = new Konva.Transformer({
+            rotateEnabled: true,
+            borderStroke: '#10b981',
+            anchorFill: '#10b981',
+            anchorSize: 16
+        });
+
+        layer.add(imgTransformer);
+        layer.add(maskTransformer);
+        layer.add(mainTransformer);
+
+        let activeImage = null;
+        let activeMask = null;
+        let isEditMode = false;
+
+        const fontFamilySelect = document.getElementById('font-family-select');
+        const textColorPicker = document.getElementById('text-color-picker');
+        const filterTypeSelect = document.getElementById('filter-type-select');
+        const filterIntensity = document.getElementById('filter-intensity');
+        const intensityValueDisplay = document.getElementById('intensity-value');
+
+        function applyFilterToSelected() {
+            const nodes = mainTransformer.nodes();
+            const type = filterTypeSelect.value;
+            const intensity = parseFloat(filterIntensity.value);
+
+            intensityValueDisplay.textContent = intensity + '%';
+
+            if (nodes.length === 0) return;
+
+            nodes.forEach(node => {
+                node.setAttr('tempType', type);
+                node.setAttr('tempIntensity', intensity);
+
+                if (type === 'none') {
+                    node.filters([]);
+                    node.clearCache();
+                } else {
+                    node.filters([Konva.Filters.Temperature]);
+                    node.cache();
+                }
+            });
+
+            layer.draw();
+        }
+
+        filterTypeSelect.addEventListener('change', applyFilterToSelected);
+        filterIntensity.addEventListener('input', applyFilterToSelected);
+
+        document.getElementById('add-text-btn').addEventListener('click', () => {
+            if (isEditMode) finalizeMasking();
+
+            const newText = new Konva.Text({
+                x: STAGE_WIDTH / 2 - 200,
+                y: STAGE_HEIGHT / 2 - 50,
+                text: 'متن خود را بنویسید',
+                fontSize: 90,
+                fontFamily: fontFamilySelect.value,
+                fill: textColorPicker.value,
+                draggable: true,
+                align: 'center'
+            });
+
+            layer.add(newText);
+            mainTransformer.nodes([newText]);
+            mainTransformer.moveToTop();
+
+            applyFilterToSelected();
+            layer.draw();
+        });
+
+        textColorPicker.addEventListener('input', (e) => {
+            mainTransformer.nodes().forEach(node => {
+                if (node.className === 'Text') {
+                    node.fill(e.target.value);
+                    if (node.filters() && node.filters().length > 0) {
+                        node.cache();
+                    }
+                }
+            });
+            layer.draw();
+        });
+
+        fontFamilySelect.addEventListener('change', (e) => {
+            const selectedFont = e.target.value;
+            localStorage.setItem('user_last_selected_font', selectedFont);
+            mainTransformer.nodes().forEach(node => {
+                if (node.className === 'Text') {
+                    node.fontFamily(e.target.value);
+                    if (node.filters() && node.filters().length > 0) {
+                        node.cache();
+                    }
+                }
+            });
+            layer.draw();
+        });
+
+        function editNodeText(textNode) {
+            textNode.hide();
+            mainTransformer.hide();
+            layer.draw();
+
+            const textPosition = textNode.absolutePosition();
+            const stageBox = stage.container().getBoundingClientRect();
+            const scale = stage.scaleX();
+
+            const textarea = document.createElement('textarea');
+            document.body.appendChild(textarea);
+
+            textarea.value = textNode.text();
+            textarea.style.position = 'absolute';
+            textarea.style.top = stageBox.top + (textPosition.y * scale) + 'px';
+            textarea.style.left = stageBox.left + (textPosition.x * scale) + 'px';
+            textarea.style.width = (textNode.width() * scale * textNode.scaleX()) + 20 + 'px';
+            textarea.style.height = (textNode.height() * scale * textNode.scaleY()) + 20 + 'px';
+            textarea.style.fontSize = (textNode.fontSize() * scale * textNode.scaleY()) + 'px';
+            textarea.style.border = '2px dashed #3b82f6';
+            textarea.style.padding = '4px';
+            textarea.style.margin = '0px';
+            textarea.style.overflow = 'hidden';
+            textarea.style.background = 'rgba(0,0,0,0.7)';
+            textarea.style.outline = 'none';
+            textarea.style.resize = 'none';
+            textarea.style.lineHeight = textNode.lineHeight();
+            textarea.style.fontFamily = textNode.fontFamily();
+            textarea.style.textAlign = textNode.align();
+            textarea.style.color = textNode.fill();
+            textarea.style.direction = 'rtl';
+            textarea.focus();
+
+            function removeTextarea() {
+                textarea.parentNode.removeChild(textarea);
+                window.removeEventListener('click', handleOutsideClick);
+                textNode.show();
+                if (textNode.filters() && textNode.filters().length > 0) {
+                    textNode.cache();
+                }
+                mainTransformer.show();
+                layer.draw();
+            }
+
+            function handleOutsideClick(e) {
+                if (e.target !== textarea) {
+                    textNode.text(textarea.value);
+                    removeTextarea();
+                }
+            }
+
+            textarea.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    textNode.text(textarea.value);
+                    removeTextarea();
+                }
+                if (e.key === 'Escape') {
+                    removeTextarea();
+                }
+            });
+
+            setTimeout(() => {
+                window.addEventListener('click', handleOutsideClick);
+            }, 50);
+        }
+
+        function addImageToCanvas(imageObj) {
+            if (isEditMode) finalizeMasking();
+
+            let imgWidth = imageObj.width;
+            let imgHeight = imageObj.height;
+            const maxDim = 800;
+            if (imgWidth > maxDim || imgHeight > maxDim) {
+                const ratio = Math.min(maxDim / imgWidth, maxDim / imgHeight);
+                imgWidth *= ratio;
+                imgHeight *= ratio;
+            }
+
+            const startX = (STAGE_WIDTH - imgWidth) / 2;
+            const startY = (STAGE_HEIGHT - imgHeight) / 2;
+
+            const konvaImage = new Konva.Image({
+                image: imageObj,
+                x: startX,
+                y: startY,
+                width: imgWidth,
+                height: imgHeight,
+                draggable: true
+            });
+
+            const initialRadius = Math.min(imgWidth, imgHeight) / 3;
+            const maskCircle = new Konva.Circle({
+                x: startX + imgWidth / 2,
+                y: startY + imgHeight / 2,
+                radius: initialRadius,
+                stroke: '#ef4444',
+                strokeWidth: 3,
+                dash: [10, 10],
+                draggable: true
+            });
+
+            maskCircle.on('transform', () => {
+                maskCircle.setAttrs({
+                    radius: Math.max(5, maskCircle.radius() * maskCircle.scaleX()),
+                    scaleX: 1,
+                    scaleY: 1
+                });
+            });
+
+            layer.add(konvaImage);
+            layer.add(maskCircle);
+
+            imgTransformer.moveToTop();
+            maskTransformer.moveToTop();
+
+            enterEditMode(konvaImage, maskCircle);
+        }
+
+        function enterEditMode(konvaImage, maskCircle) {
+            isEditMode = true;
+            activeImage = konvaImage;
+            activeMask = maskCircle;
+
+            mainTransformer.nodes([]);
+
+            activeImage.show();
+            activeMask.show();
+
+            imgTransformer.nodes([activeImage]);
+            maskTransformer.nodes([activeMask]);
+
+            layer.draw();
+        }
+
+        function finalizeMasking() {
+            if (!isEditMode || !activeImage || !activeMask) return;
+
+            const imgScaleX = activeImage.scaleX();
+            const imgScaleY = activeImage.scaleY();
+            const realImgW = activeImage.width() * imgScaleX;
+            const realImgH = activeImage.height() * imgScaleY;
+            const imgRot = activeImage.rotation();
+            const imgX = activeImage.x();
+            const imgY = activeImage.y();
+
+            const maskX = activeMask.x();
+            const maskY = activeMask.y();
+            const maskR = activeMask.radius();
+
+            const diameter = maskR * 2;
+
+            const offscreenCanvas = document.createElement('canvas');
+            offscreenCanvas.width = diameter;
+            offscreenCanvas.height = diameter;
+            const ctx = offscreenCanvas.getContext('2d');
+
+            ctx.beginPath();
+            ctx.arc(maskR, maskR, maskR, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+
+            ctx.translate(maskR - (maskX - imgX), maskR - (maskY - imgY));
+            if (imgRot !== 0) {
+                ctx.rotate((imgRot * Math.PI) / 180);
+            }
+            ctx.drawImage(activeImage.image(), 0, 0, realImgW, realImgH);
+
+            const croppedImageObj = new Image();
+            croppedImageObj.src = offscreenCanvas.toDataURL();
+
+            croppedImageObj.onload = () => {
+                const finalImageNode = new Konva.Image({
+                    image: croppedImageObj,
+                    x: maskX - maskR,
+                    y: maskY - maskR,
+                    width: diameter,
+                    height: diameter,
+                    draggable: true
+                });
+
+                finalImageNode.setAttr('rawImage', activeImage.image());
+                finalImageNode.setAttr('rawState', {
+                    imgX: imgX,
+                    imgY: imgY,
+                    imgW: realImgW,
+                    imgH: realImgH,
+                    imgRot: imgRot,
+                    maskX: maskX,
+                    maskY: maskY,
+                    maskR: maskR
+                });
+
+                activeImage.destroy();
+                activeMask.destroy();
+
+                layer.add(finalImageNode);
+
+                imgTransformer.nodes([]);
+                maskTransformer.nodes([]);
+
+                mainTransformer.nodes([finalImageNode]);
+                mainTransformer.moveToTop();
+
+                applyFilterToSelected();
+
+                finalImageNode.on('dblclick dbltap', () => {
+                    unpackImageForEdit(finalImageNode);
+                });
+
+                isEditMode = false;
+                activeImage = null;
+                activeMask = null;
+
+                layer.draw();
+            };
+        }
+
+        function unpackImageForEdit(finalImageNode) {
+            if (isEditMode) finalizeMasking();
+
+            const rawImg = finalImageNode.getAttr('rawImage');
+            const state = finalImageNode.getAttr('rawState');
+
+            const scaleX = finalImageNode.scaleX();
+            const scaleY = finalImageNode.scaleY();
+            const rot = finalImageNode.rotation();
+            const nodeX = finalImageNode.x();
+            const nodeY = finalImageNode.y();
+
+            const rad = (rot * Math.PI) / 180;
+
+            const localCenterX = state.maskR * scaleX;
+            const localCenterY = state.maskR * scaleY;
+
+            const rotatedCenterX = localCenterX * Math.cos(rad) - localCenterY * Math.sin(rad);
+            const rotatedCenterY = localCenterX * Math.sin(rad) + localCenterX * Math.cos(rad);
+
+            const currentMaskX = nodeX + rotatedCenterX;
+            const currentMaskY = nodeY + rotatedCenterY;
+            const currentMaskR = state.maskR * Math.max(scaleX, scaleY);
+
+            const dx = (state.imgX - state.maskX) * scaleX;
+            const dy = (state.imgY - state.maskY) * scaleY;
+
+            const rotatedDx = dx * Math.cos(rad) - dy * Math.sin(rad);
+            const rotatedDy = dx * Math.sin(rad) + dy * Math.cos(rad);
+
+            const currentImgX = currentMaskX + rotatedDx;
+            const currentImgY = currentMaskY + rotatedDy;
+
+            const restoredImage = new Konva.Image({
+                image: rawImg,
+                x: currentImgX,
+                y: currentImgY,
+                width: state.imgW * scaleX,
+                height: state.imgH * scaleY,
+                rotation: state.imgRot + rot,
+                draggable: true
+            });
+
+            const restoredMask = new Konva.Circle({
+                x: currentMaskX,
+                y: currentMaskY,
+                radius: currentMaskR,
+                stroke: '#ef4444',
+                strokeWidth: 3,
+                dash: [10, 10],
+                draggable: true
+            });
+
+            restoredMask.on('transform', () => {
+                restoredMask.setAttrs({
+                    radius: Math.max(5, restoredMask.radius() * restoredMask.scaleX()),
+                    scaleX: 1,
+                    scaleY: 1
+                });
+            });
+
+            finalImageNode.destroy();
+
+            layer.add(restoredImage);
+            layer.add(restoredMask);
+
+            enterEditMode(restoredImage, restoredMask);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+
+            if (e.key === 'Enter') {
+                if (isEditMode) finalizeMasking();
+            }
+
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                e.preventDefault();
+                if (isEditMode) {
+                    if (activeImage) activeImage.destroy();
+                    if (activeMask) activeMask.destroy();
+                    imgTransformer.nodes([]);
+                    maskTransformer.nodes([]);
+                    isEditMode = false;
+                    activeImage = null;
+                    activeMask = null;
+                    layer.draw();
+                } else {
+                    const selectedNodes = mainTransformer.nodes();
+                    if (selectedNodes.length > 0) {
+                        selectedNodes.forEach(node => node.destroy());
+                        mainTransformer.nodes([]);
+                        layer.draw();
+                    }
+                }
+            }
+        });
+
+        stage.on('click tap', (e) => {
+            const target = e.target;
+            if (target === stage || target === bgRect) {
+                if (isEditMode) {
+                    finalizeMasking();
+                } else {
+                    mainTransformer.nodes([]);
+                    filterTypeSelect.value = 'none';
+                    filterIntensity.value = 50;
+                    intensityValueDisplay.textContent = '50%';
+                    layer.draw();
+                }
+                return;
+            }
+
+            if (!isEditMode) {
+                mainTransformer.nodes([target]);
+
+                if (target.className === 'Text') {
+                    textColorPicker.value = target.fill();
+                    fontFamilySelect.value = target.fontFamily();
+                }
+
+                const currentType = target.getAttr('tempType') || 'none';
+                const currentIntensity = target.getAttr('tempIntensity') !== undefined ? target.getAttr('tempIntensity') : 50;
+
+                filterTypeSelect.value = currentType;
+                filterIntensity.value = currentIntensity;
+                intensityValueDisplay.textContent = currentIntensity + '%';
+
+                layer.draw();
+            }
+        });
+
+        stage.on('dblclick dbltap', (e) => {
+            const target = e.target;
+            if (target.className === 'Text') {
+                editNodeText(target);
+            }
+        });
+
+        function processImageFile(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const img = new Image();
+                img.onload = function () {
+                    addImageToCanvas(img);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        window.addEventListener('paste', (e) => {
+            const items = e.clipboardData && e.clipboardData.items;
+            if (!items) return;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    processImageFile(items[i].getAsFile());
+                    break;
+                }
+            }
+        });
+
+        document.getElementById('paste-btn').addEventListener('click', async () => {
+            try {
+                const clipboardItems = await navigator.clipboard.read();
+                for (const item of clipboardItems) {
+                    const imageType = item.types.find(type => type.startsWith('image/'));
+                    if (imageType) {
+                        const blob = await item.getType(imageType);
+                        processImageFile(blob);
+                        return;
+                    }
+                }
+                alert('هیچ تصویری در کلپ‌بورد یافت نشد!');
+            } catch (err) {
+                alert('لطفاً از میانبر Ctrl+V استفاده کنید.');
+            }
+        });
+
+        document.getElementById('export-btn').addEventListener('click', () => {
+            if (isEditMode) finalizeMasking();
+
+            mainTransformer.nodes([]);
+            imgTransformer.nodes([]);
+            maskTransformer.nodes([]);
+            layer.draw();
+
+            const dataURL = stage.toDataURL({
+                pixelRatio: 1 / stage.scaleX(),
+                mimeType: 'image/png'
+            });
+
+            const link = document.createElement('a');
+            link.download = 'youtube-cover-2560x1440.png';
+            link.href = dataURL;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        fitStageToContainer();
+
+        const savedFont = localStorage.getItem('user_last_selected_font');
+        if (savedFont) {
+            fontFamilySelect.value = savedFont;
+        }
+    </script>
+</body>
+
+</html>
